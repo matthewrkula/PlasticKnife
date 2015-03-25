@@ -18,6 +18,8 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
 
+import com.mattkula.processing.annotations.SetValue;
+
 @SupportedAnnotationTypes(value= {"*"})
 @SupportedSourceVersion(SourceVersion.RELEASE_6)
 public class PlasticKnifeProcessor extends AbstractProcessor {
