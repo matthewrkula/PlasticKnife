@@ -15,10 +15,16 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.tools.JavaFileObject;
 
 import com.mattkula.processing.annotations.Bind;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
 
 @SupportedAnnotationTypes(value= {"*"})
 @SupportedSourceVersion(SourceVersion.RELEASE_7)
@@ -28,8 +34,7 @@ public class PlasticKnifeProcessor extends AbstractProcessor {
 	
 	private Filer filer;
 		
-	Map<String, List<Element>> parentToChildrenMap = new HashMap<>();
-	String plasticKnifeHeader = "package com.mattkula.processing;\n\n" + "import com.mattkula.processing.Injector;\n";
+	Map<Element, List<Element>> parentToChildrenMap = new HashMap<>();
 	 
 	@Override
 	public void init(ProcessingEnvironment env) {
@@ -44,46 +49,43 @@ public class PlasticKnifeProcessor extends AbstractProcessor {
 		return false;
 	}
 	
-	public void addImport(String packageName) {
-		plasticKnifeHeader += "import " + packageName + ";\n";
-	}
-	
 	private void processBind(RoundEnvironment roundEnv) {
 		if (!roundEnv.processingOver()) {
 			Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(Bind.class);
 			
 			for (Element element : elements) {
 				Element parent = element.getEnclosingElement();
-				String parentName = parent.getSimpleName().toString();
-
-				if (!parentToChildrenMap.keySet().contains(parentName)) {
-					parentToChildrenMap.put(parentName, new ArrayList<Element>());
-					addImport(parent.asType().toString());
+				if (!parentToChildrenMap.keySet().contains(element)) {
+					parentToChildrenMap.put(parent, new ArrayList<Element>());
 				}
-				parentToChildrenMap.get(parentName).add(element);
+				parentToChildrenMap.get(parent).add(element);
 			}
 
-			for (String classElement : parentToChildrenMap.keySet()) {
-				String className = classElement + INJECTOR_SUFFIX;
-				String plasticKnifeContent = String.format("public class %s implements Injector<%s> {\n\n", className, classElement);
+			for (Element classElement : parentToChildrenMap.keySet()) {
+				String className = classElement.getSimpleName().toString();
+				TypeName classType = TypeName.get(classElement.asType());
 
-				plasticKnifeContent += String.format("\tpublic void inject(%s injector) {\n", classElement);
+				TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className + INJECTOR_SUFFIX)
+						.addSuperinterface(ParameterizedTypeName.get(ClassName.get(Injector.class), classType));
+
+				MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder("inject")
+						.addModifiers(Modifier.PUBLIC)
+						.addParameter(classType, "injector");
+
 				List<Element> childElements = parentToChildrenMap.get(classElement);
-
 				for (Element element : childElements) {
 					Bind annotation = element.getAnnotation(Bind.class);
-					plasticKnifeContent += String.format("\t\tinjector.%s = (%s)injector.findViewById(%d);\n", 
+					methodBuilder.addStatement("injector.$L = ($T)injector.findViewById($L)",
 							element.getSimpleName(), element.asType(), annotation.value());
 				}
-				plasticKnifeContent += "\t}\n\n" + "}\n";
-
-				JavaFileObject file = null;
+				
+				classBuilder.addMethod(methodBuilder.build());
+				
+				JavaFile javaFile = JavaFile
+						.builder("com.mattkula.processing", classBuilder.build())
+						.build();
 				try {
-					file = filer.createSourceFile("com.mattkula.processing." + className);
-					file.openWriter()
-					.append(plasticKnifeHeader)
-					.append(plasticKnifeContent)
-					.close();
+					javaFile.writeTo(filer);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
