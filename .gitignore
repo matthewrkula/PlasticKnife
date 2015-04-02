@@ -1,6 +1,7 @@
 target/
 libs/
 out/
+build.sh
 
 .DS_Store
 *.pydevproject
