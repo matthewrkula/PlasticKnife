@@ -35,15 +35,15 @@ public class PlasticKnifeProcessor extends AbstractProcessor {
 	
 	public static final String INJECTOR_SUFFIX = "Injector";
 
-	ClassName onClickListenerClassName = ClassName.get("android.widget", "View", "OnClickListener");
-	ClassName viewClassName = ClassName.get("android.widget", "View");
+	ClassName onClickListenerClassName = ClassName.get("android.view", "View", "OnClickListener");
+	ClassName viewClassName = ClassName.get("android.view", "View");
 	
 	private Filer filer;
 
 	@SuppressWarnings("serial")
 	static List<Class<? extends Annotation>> myAnnotations = new ArrayList<Class<? extends Annotation>>() {{
-		add(OnClick.class);
 		add(Bind.class);
+		add(OnClick.class);
 	}};
 	
 	@Override
@@ -124,7 +124,7 @@ public class PlasticKnifeProcessor extends AbstractProcessor {
 
 		for (Element element : elements) {
 			Element parent = element.getEnclosingElement();
-			if (!map.keySet().contains(element)) {
+			if (!map.keySet().contains(parent)) {
 				map.put(parent, new ArrayList<Element>());
 			}
 			map.get(parent).add(element);
