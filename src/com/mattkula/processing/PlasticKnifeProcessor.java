@@ -104,7 +104,7 @@ public class PlasticKnifeProcessor extends AbstractProcessor {
 						.addAnnotation(Override.class)
 						.addModifiers(Modifier.PUBLIC)
 						.addParameter(viewClassName, "view")
-						.addStatement("injector.$N()", element.getSimpleName())
+						.addStatement("injector.$N($L)", element.getSimpleName(), "view")
 						.build())
                 .build();
 
